@@ -64,7 +64,7 @@ FRAME_TIME = 0.1  # time interval
 WIND_ANGLE = 0.1
 WIND_ACCEL = 0.05
 
-WIND_ACCEL_Y = np.sin(WIND_ANGLE) * WIND_ACCEL  # wind constant in Y direction
+WIND_ACCEL_Y = np.cos(WIND_ANGLE) * WIND_ACCEL  # wind constant in Y direction
 WIND_ACCEL_X = np.sin(WIND_ANGLE) * WIND_ACCEL  # wind constant in X direction
 
 BOOST_ACCEL = 0.1  # propulsion constant
