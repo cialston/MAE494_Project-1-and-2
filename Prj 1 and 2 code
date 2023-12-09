@@ -29,9 +29,9 @@ FRAME_TIME = 0.1  # time interval
 
 WINDANGLE = 0.7058 #45 deg angle
 
-GRAVITY_ACCEL_Y = WINDANGLE*0.06# wind force constant in Z direction
-GRAVITY_ACCEL_X = WINDANGLE*0.06 #wind force constant in X direction
-BOOST_ACCEL = 0.18  # thrust constant
+WIND_ACCEL_Y = WINDANGLE*0.06# wind force constant in Z direction
+WIND_ACCEL_X = WINDANGLE*0.06 #wind force constant in X direction
+BOOST_ACCEL = 0.18  # propulsion constant
 OMEGA_RATE = 0.1  # max rotation rate
 
 
@@ -42,7 +42,7 @@ class Dynamics(nn.Module):
 
     def forward(self, state, action):
         """
-        action[0] = Thrust
+        action[0] = Propulsion
         action[1] = theta_dot
 
         state[0] = x
@@ -52,13 +52,13 @@ class Dynamics(nn.Module):
         state[4] = theta
 
         """
-        # Apply gravity
-        # Note: Here gravity is used to change velocity which is the second element of the state vector
-        # Normally, we would do x[1] = x[1] + gravity * delta_time
+        # Apply wind_force
+        # Note: Here wind_force is used to change velocity which is the second element of the state vector
+        # Normally, we would do x[1] = x[1] + wind_force * delta_time
         # but this is not allowed in PyTorch since it overwrites one variable (x[1]) that is part of the computational graph to be differentiated.
-        # Therefore, I define a tensor dx = [0., gravity * delta_time], and do x = x + dx. This is allowed.
+        # Therefore, I define a tensor dx = [0., wind_force * delta_time], and do x = x + dx. This is allowed.
 
-        delta_state_gravity = torch.tensor([[0., 0., -GRAVITY_ACCEL_X * FRAME_TIME, -GRAVITY_ACCEL_Y * FRAME_TIME, 0.]])
+        delta_state_wind_force = torch.tensor([[0., 0., -WIND_ACCEL_X * FRAME_TIME, -WIND_ACCEL_Y * FRAME_TIME, 0.]])
 
         state_tensor = torch.zeros((1, 5))
         state_tensor[0, 3] = torch.cos(state[0, 4])
@@ -84,10 +84,10 @@ class Dynamics(nn.Module):
                                   [0., 0., 0., 0., 0.]])
 
         state = torch.matmul(step_mat, state.T) + torch.matmul(shift_mat, delta_state.T) * 0.5 + torch.matmul(shift_mat,
-                                                                                                              delta_state_gravity.T) * 0.5
+                                                                                                              delta_state_wind_force.T) * 0.5
         state = state.T
 
-        state = state + delta_state + delta_state_gravity + delta_state_theta
+        state = state + delta_state + delta_state_wind_force + delta_state_theta
 
         return state
 
@@ -201,7 +201,7 @@ class Optimize:
         theta = data[:, 4]
         action_data = np.array(
             [self.simulation.action_trajectory[i][0].detach().numpy() for i in range(self.simulation.T)])
-        thrust = action_data[:, 0]
+        propulsion = action_data[:, 0]
         frame = range(self.simulation.T)
 
         fig, ax = plt.subplots(1, 4, tight_layout=1, figsize=(15, 5))
@@ -224,11 +224,11 @@ class Optimize:
         ax[2].legend(frameon=0)
         ax[2].set(title=f'Theta plot at {self.epoch}')
 
-        ax[3].plot(frame, thrust, c='y', label="thrust")
+        ax[3].plot(frame, propulsion, c='y', label="propulsion")
         ax[3].set_xlabel("Time interval")
-        ax[3].set_ylabel("Thrust")
+        ax[3].set_ylabel("Propulsion")
         ax[3].legend(frameon=0)
-        ax[3].set(title=f'Thrust plot at {self.epoch}')
+        ax[3].set(title=f'Propulsion plot at {self.epoch}')
         plt.show()
 
     def animation(self, epochs):
@@ -256,9 +256,10 @@ class Optimize:
         ax1 = fig.add_subplot(111)
         plt.axhline(y=0., color='b', linestyle='--', lw=0.8)
 
-        ln1, = ax1.plot([], [], linewidth=10, color='lightblue')  # rocket body
-        ln6, = ax1.plot([], [], '--', linewidth=2, color='orange')  # trajectory line
-        ln2, = ax1.plot([], [], linewidth=4, color='tomato')  # thrust line
+        ln1, = ax1.plot([], [], linewidth=10, color='saddlebrown')  # boat body
+        ln6, = ax1.plot([], [], '--', linewidth=2, color='black')  # trajectory line
+        ln2, = ax1.plot([], [], linewidth=4, color='steelblue')  # propulsion line
+
 
         plt.tight_layout()
 
@@ -267,29 +268,29 @@ class Optimize:
         ax1.set_aspect(1)  # aspect of the axis scaling, i.e. the ratio of y-unit to x-unit
 
         def update(i):
-            rocket_theta = x_t[i, 4]
+            boat_theta = x_t[i, 4]
 
-            rocket_x = x_t[i, 0]
-            # length/1 is just to make rocket bigger in animation
-            rocket_x_points = [rocket_x + length / 1 * np.sin(rocket_theta),
-                               rocket_x - length / 1 * np.sin(rocket_theta)]
+            boat_x = x_t[i, 0]
+            # length/1 is just to make boat bigger in animation
+            boat_x_points = [boat_x + length / 1 * np.sin(boat_theta),
+                               boat_x - length / 1 * np.sin(boat_theta)]
 
-            rocket_y = x_t[i, 1]
-            rocket_y_points = [rocket_y + length / 1 * np.cos(rocket_theta),
-                               rocket_y - length / 1 * np.cos(rocket_theta)]
+            boat_y = x_t[i, 1]
+            boat_y_points = [boat_y + length / 1 * np.cos(boat_theta),
+                               boat_y - length / 1 * np.cos(boat_theta)]
 
-            ln1.set_data(rocket_x_points, rocket_y_points)
+            ln1.set_data(boat_x_points, boat_y_points)
 
-            thrust_mag = u_t[i, 0]
-            thrust_angle = -u_t[i, 1]
+            propulsion_mag = u_t[i, 0]
+            propulsion_angle = -u_t[i, 1]
 
-            flame_length = (thrust_mag) * (0.4 / v_exhaust)
-            # flame_x_points = [rocket_x_points[1], rocket_x_points[1] + flame_length * np.sin(thrust_angle - rocket_theta)]
-            # flame_y_points = [rocket_y_points[1], rocket_y_points[1] - flame_length * np.cos(thrust_angle - rocket_theta)]
-            flame_x_points = [rocket_x_points[1], rocket_x_points[1] - flame_length * np.sin(rocket_theta)]
-            flame_y_points = [rocket_y_points[1], rocket_y_points[1] - flame_length * np.cos(rocket_theta)]
+            motor_length = (propulsion_mag) * (0.4 / v_exhaust)
+            # motor_x_points = [boat_x_points[1], boat_x_points[1] + motor_length * np.sin(propulsion_angle - boat_theta)]
+            # motor_y_points = [boat_y_points[1], boat_y_points[1] - motor_length * np.cos(propulsion_angle - boat_theta)]
+            motor_x_points = [boat_x_points[1], boat_x_points[1] - motor_length * np.sin(boat_theta)]
+            motor_y_points = [boat_y_points[1], boat_y_points[1] - motor_length * np.cos(boat_theta)]
 
-            ln2.set_data(flame_x_points, flame_y_points)
+            ln2.set_data(motor_x_points, motor_y_points)
             ln6.set_data(x_t[:i, 0], x_t[:i, 1])
             f.value += 1
 
@@ -298,7 +299,7 @@ class Optimize:
 
         # Save as GIF
         writer = PillowWriter(fps=20)
-        anim.save("rocket_landing1.gif", writer=writer)
+        anim.save("boat_docking1.gif", writer=writer)
 
 
 T = 200  # number of time steps of the simulation
@@ -309,7 +310,7 @@ d = Dynamics()
 c = Controller(dim_input, dim_hidden, dim_output)
 s = Simulation(c, d, T)
 o = Optimize(s)
-o.train(50)  # training with number of epochs (gradient descent steps)
+o.train(25)  # training with number of epochs (gradient descent steps)
 
 
 def mpc(x_0, T):
@@ -326,7 +327,7 @@ def mpc(x_0, T):
                   [np.sin(theta0) * dt * BOOST_ACCEL, 0],
                   [np.cos(theta0) * dt * BOOST_ACCEL, 0],
                   [0, dt * OMEGA_RATE]])
-    c = np.array([0, 0, 0, -GRAVITY_ACCEL_Y * dt, 0])
+    c = np.array([0, 0, 0, -WIND_ACCEL_Y * dt, 0])
     cost = 0
     constr = []
     for t in range(T):
@@ -374,9 +375,9 @@ state_trajectory = []
 
 # environment parameters
 FRAME_TIME = 0.1  # time interval
-GRAVITY_ACCEL_Y = 0.12  # gravity constant in Y direction
-GRAVITY_ACCEL_X = 0.  # gravity constant in X direction
-BOOST_ACCEL = 0.18  # thrust constant
+WIND_ACCEL_Y = 0.12  # wind_force constant in Y direction
+WIND_ACCEL_X = 0.  # wind_force constant in X direction
+BOOST_ACCEL = 0.18  # propulsion constant
 OMEGA_RATE = 0.1  # max rotation rate
 
 
@@ -394,7 +395,7 @@ def mpc(x_0, T):
                   [np.sin(theta0) * dt * BOOST_ACCEL, 0],
                   [np.cos(theta0) * dt * BOOST_ACCEL, 0],
                   [0, dt * OMEGA_RATE]])
-    c = np.array([0, 0, 0, -GRAVITY_ACCEL_Y * dt, 0])
+    c = np.array([0, 0, 0, -WIND_ACCEL_Y * dt, 0])
     cost = 0
     constr = []
     for t in range(T):
@@ -420,7 +421,7 @@ def visualize(x, u):
     vx = data[:, 2]
     vy = data[:, 3]
     theta = data[:, 4]
-    thrust = action_data[:, 0]
+    propulsion = action_data[:, 0]
     frame = range(T)
 
     fig, ax = plt.subplots(1, 4, tight_layout=1, figsize=(15, 5))
@@ -443,16 +444,16 @@ def visualize(x, u):
     ax[2].legend(frameon=0)
     ax[2].set(title=f'Theta plot')
 
-    ax[3].plot(frame, thrust, c='y', label="thrust")
+    ax[3].plot(frame, propulsion, c='y', label="propulsion")
     ax[3].set_xlabel("Time interval")
-    ax[3].set_ylabel("Thrust")
+    ax[3].set_ylabel("Propulsion")
     ax[3].legend(frameon=0)
-    ax[3].set(title=f'Thrust plot')
+    ax[3].set(title=f'Propulsion plot')
     plt.show()
 
 
 def simulate(state, action):
-    delta_state_gravity = np.array([0., 0., -GRAVITY_ACCEL_X * FRAME_TIME, -GRAVITY_ACCEL_Y * FRAME_TIME, 0.])
+    delta_state_wind_force = np.array([0., 0., -WIND_ACCEL_X * FRAME_TIME, -WIND_ACCEL_Y * FRAME_TIME, 0.])
     state_tensor = np.zeros(5)
     state_tensor[2] = np.sin(state[4])
     state_tensor[3] = np.cos(state[4])
@@ -475,8 +476,8 @@ def simulate(state, action):
                           [0., 0., 0., 0., 0.],
                           [0., 0., 0., 0., 0.]])
 
-    state = step_mat @ state + shift_mat @ delta_state * 0.5 + shift_mat @ delta_state_gravity * 0.5
-    state = state + delta_state + delta_state_gravity
+    state = step_mat @ state + shift_mat @ delta_state * 0.5 + shift_mat @ delta_state_wind_force * 0.5
+    state = state + delta_state + delta_state_wind_force
     state[4] += delta_state_theta
     print(state)
     print(action)
@@ -530,9 +531,9 @@ def animation(state_trajectory, action_trajectory):
     ax1 = fig.add_subplot(111)
     plt.axhline(y=0., color='b', linestyle='--', lw=0.8)
 
-    ln1, = ax1.plot([], [], linewidth=10, color='lightblue')  # rocket body
-    ln6, = ax1.plot([], [], '--', linewidth=2, color='orange')  # trajectory line
-    ln2, = ax1.plot([], [], linewidth=4, color='tomato')  # thrust line
+    ln1, = ax1.plot([], [], linewidth=10, color='saddlebrown')  # boat body
+    ln6, = ax1.plot([], [], '--', linewidth=2, color='black')  # trajectory line
+    ln2, = ax1.plot([], [], linewidth=4, color='steelblue')  # propulsion line
 
     plt.tight_layout()
 
@@ -541,27 +542,27 @@ def animation(state_trajectory, action_trajectory):
     ax1.set_aspect(1)  # aspect of the axis scaling, i.e. the ratio of y-unit to x-unit
 
     def update(i):
-        rocket_theta = x_t[i, 4]
+        boat_theta = x_t[i, 4]
 
-        rocket_x = x_t[i, 0]
-        # length/1 is just to make rocket bigger in animation
-        rocket_x_points = [rocket_x + length / 1 * np.sin(rocket_theta), rocket_x - length / 1 * np.sin(rocket_theta)]
+        boat_x = x_t[i, 0]
+        # length/1 is just to make boat bigger in animation
+        boat_x_points = [boat_x + length / 1 * np.sin(boat_theta), boat_x - length / 1 * np.sin(boat_theta)]
 
-        rocket_y = x_t[i, 1]
-        rocket_y_points = [rocket_y + length / 1 * np.cos(rocket_theta), rocket_y - length / 1 * np.cos(rocket_theta)]
+        boat_y = x_t[i, 1]
+        boat_y_points = [boat_y + length / 1 * np.cos(boat_theta), boat_y - length / 1 * np.cos(boat_theta)]
 
-        ln1.set_data(rocket_x_points, rocket_y_points)
+        ln1.set_data(boat_x_points, boat_y_points)
 
-        thrust_mag = u_t[i, 0]
-        thrust_angle = -u_t[i, 1]
+        propulsion_mag = u_t[i, 0]
+        propulsion_angle = -u_t[i, 1]
 
-        flame_length = (thrust_mag) * (0.4 / v_exhaust)
-        # flame_x_points = [rocket_x_points[1], rocket_x_points[1] + flame_length * np.sin(thrust_angle - rocket_theta)]
-        # flame_y_points = [rocket_y_points[1], rocket_y_points[1] - flame_length * np.cos(thrust_angle - rocket_theta)]
-        flame_x_points = [rocket_x_points[1], rocket_x_points[1] - flame_length * np.sin(rocket_theta)]
-        flame_y_points = [rocket_y_points[1], rocket_y_points[1] - flame_length * np.cos(rocket_theta)]
+        motor_length = (propulsion_mag) * (0.4 / v_exhaust)
+        # motor_x_points = [boat_x_points[1], boat_x_points[1] + motor_length * np.sin(propulsion_angle - boat_theta)]
+        # motor_y_points = [boat_y_points[1], boat_y_points[1] - motor_length * np.cos(propulsion_angle - boat_theta)]
+        motor_x_points = [boat_x_points[1], boat_x_points[1] - motor_length * np.sin(boat_theta)]
+        motor_y_points = [boat_y_points[1], boat_y_points[1] - motor_length * np.cos(boat_theta)]
 
-        ln2.set_data(flame_x_points, flame_y_points)
+        ln2.set_data(motor_x_points, motor_y_points)
         ln6.set_data(x_t[:i, 0], x_t[:i, 1])
         f.value += 1
 
@@ -570,7 +571,7 @@ def animation(state_trajectory, action_trajectory):
 
     # Save as GIF
     writer = PillowWriter(fps=20)
-    anim.save("rocket_landing_mpc.gif", writer=writer)
+    anim.save("boat_docking_mpc.gif", writer=writer)
 
 
 animation(state_trajectory, action_trajectory)
