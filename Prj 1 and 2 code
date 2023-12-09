@@ -24,15 +24,20 @@ jtplot.style(theme='grade3', context='notebook', ticks=True, grid=False)
 
 logger = logging.getLogger(__name__)
 
+plt.close('all')
+# to close the plots
+
+
 # environment parameters
 FRAME_TIME = 0.1  # time interval
 
+WINDANGLE_Y = 0.7058 #45 deg angle
 WINDANGLE_X = 0.7058 #45 deg angle
-WINDANGLE_Z = 0.7058 #45 deg angle
 
-WIND_ACCEL_Z = WINDANGLE_Z*0.06# wind force constant in Z direction
+WIND_ACCEL_Y = WINDANGLE_Y*0.06# wind force constant in Z direction
 WIND_ACCEL_X = WINDANGLE_X*0.06 #wind force constant in X direction
-BOOST_ACCEL = 0.18  # propulsion constant
+
+BOOST_ACCEL = 0.15  # propulsion constant
 OMEGA_RATE = 0.1  # max rotation rate
 
 
@@ -311,7 +316,7 @@ d = Dynamics()
 c = Controller(dim_input, dim_hidden, dim_output)
 s = Simulation(c, d, T)
 o = Optimize(s)
-o.train(25)  # training with number of epochs (gradient descent steps)
+o.train(15)  # training with number of epochs (gradient descent steps)
 
 
 def mpc(x_0, T):
@@ -376,9 +381,14 @@ state_trajectory = []
 
 # environment parameters
 FRAME_TIME = 0.1  # time interval
-WIND_ACCEL_Y = 0.12  # wind_force constant in Y direction
-WIND_ACCEL_X = 0.  # wind_force constant in X direction
-BOOST_ACCEL = 0.18  # propulsion constant
+
+WINDANGLE_Y = 0.7058 #45 deg angle
+WINDANGLE_X = 0.7058 #45 deg angle
+
+WIND_ACCEL_Y = WINDANGLE_Y*0.06# wind force constant in Z direction
+WIND_ACCEL_X = WINDANGLE_X*0.06 #wind force constant in X direction
+
+BOOST_ACCEL = 0.15  # propulsion constant
 OMEGA_RATE = 0.1  # max rotation rate
 
 
@@ -396,7 +406,7 @@ def mpc(x_0, T):
                   [np.sin(theta0) * dt * BOOST_ACCEL, 0],
                   [np.cos(theta0) * dt * BOOST_ACCEL, 0],
                   [0, dt * OMEGA_RATE]])
-    c = np.array([0, 0, 0, -WIND_ACCEL_Y * dt, 0])
+    c = np.array([0, 0, -WIND_ACCEL_X * dt, -WIND_ACCEL_Y * dt, 0])
     cost = 0
     constr = []
     for t in range(T):
