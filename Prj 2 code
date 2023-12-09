@@ -49,10 +49,11 @@ import numpy as np
 
 n_state = 5
 n_action = 2
-T = 250
+T = 200
 dt = 0.02
-x_0 = np.array([3., 5., 0., 0., -0.5])
-total_time_step = 250
+
+x_0 = np.array([3., 2., 0., 0., -0.2])
+total_time_step = 200
 
 action_trajectory = []
 state_trajectory = []
@@ -60,11 +61,11 @@ state_trajectory = []
 # environment parameters
 FRAME_TIME = 0.1  # time interval
 
-WIND_ANGLE = 0.707
+WIND_ANGLE = 0.1
 WIND_ACCEL = 0.05
 
-WIND_ACCEL_Y = WIND_ANGLE * WIND_ACCEL  # wind constant in Y direction
-WIND_ACCEL_X = WIND_ANGLE * WIND_ACCEL  # wind constant in X direction
+WIND_ACCEL_Y = np.sin(WIND_ANGLE) * WIND_ACCEL  # wind constant in Y direction
+WIND_ACCEL_X = np.sin(WIND_ANGLE) * WIND_ACCEL  # wind constant in X direction
 
 BOOST_ACCEL = 0.1  # propulsion constant
 
@@ -227,7 +228,7 @@ def animation(state_trajectory, action_trajectory):
 
     plt.tight_layout()
 
-    ax1.set_xlim(-5, 5)
+    ax1.set_xlim(0, 6)
     ax1.set_ylim(-2, 5)
     ax1.set_aspect(1)  # aspect of the axis scaling, i.e. the ratio of y-unit to x-unit
 
