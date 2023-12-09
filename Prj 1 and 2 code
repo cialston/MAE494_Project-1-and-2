@@ -352,9 +352,9 @@ def control(x_0, total_time_step):
         action_trajectory.append(action)
         state_trajectory.append(x_current)
 
-        import cvxpy as cp
-
-
+        
+        
+import cvxpy as cp
 import torch
 from cvxpylayers.torch import CvxpyLayer
 import numpy as np
