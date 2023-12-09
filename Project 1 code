@@ -1,3 +1,4 @@
+
 # overhead
 import logging
 import math
@@ -144,7 +145,8 @@ class Simulation(nn.Module):
 
     @staticmethod
     def initialize_state():
-        state = [[2., 4., 0., 0., -0.5]]
+
+        state = [[3., 2., 0., 0., -0.2]]
         return torch.tensor(state, requires_grad=False).float()
 
     def error(self, state):
