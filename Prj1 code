@@ -33,8 +33,8 @@ FRAME_TIME = 0.1  # time interval
 WIND_ANGLE = 0.1
 WIND_ACCEL = 0.05
 
-WIND_ACCEL_Y = np.cos(WIND_ANGLE) * WIND_ACCEL  # wind constant in Y direction
-WIND_ACCEL_X = np.sin(WIND_ANGLE) * WIND_ACCEL  # wind constant in X direction
+WIND_ACCEL_Y = 0.05#np.cos(WIND_ANGLE) * WIND_ACCEL  # wind constant in Y direction
+WIND_ACCEL_X = 0.025#np.sin(WIND_ANGLE) * WIND_ACCEL  # wind constant in X direction
 
 BOOST_ACCEL = 0.1  # propulsion constant
 
@@ -213,11 +213,11 @@ class Optimize:
 
         ax[0].plot(x, y, c='b')
         ax[0].set_xlabel("X")
-        ax[0].set_ylabel("Y")
-        ax[0].set(title=f'Displacement plot(x-y) at frame {self.epoch}')
+        ax[0].set_ylabel("Z")
+        ax[0].set(title=f'Displacement plot(x-z) at frame {self.epoch}')
 
         ax[1].plot(frame, vx, c='c', label="Velocity in x")
-        ax[1].plot(frame, vy, c='r', label="Velocity in y")
+        ax[1].plot(frame, vy, c='r', label="Velocity in z")
         ax[1].set_xlabel("Time")
         ax[1].set_ylabel("Velocity (m/s)")
         ax[1].legend(frameon=0)
@@ -315,4 +315,4 @@ d = Dynamics()
 c = Controller(dim_input, dim_hidden, dim_output)
 s = Simulation(c, d, T)
 o = Optimize(s)
-o.train(15)  # training with number of epochs (gradient descent steps)
+o.train(50)  # training with number of epochs (gradient descent steps)
